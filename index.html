@@ -1,0 +1,790 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>相性診断アプリ 開発スケジュール</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: 見出し＋現在地の一行サマリー → 横スクロールのガント（左の工程名は固定）→ 直近のチェックポイントとメモ */
+:root {
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --ink: #17202e;
+  --muted: #5a6577;
+  --line: #dde2eb;
+  --accent: #2c56c9;
+  --accent-soft: #d9e2fa;
+  --on-accent: #ffffff;
+  --done: #8d98aa;
+  --now: #e0532b;
+  --holiday: #efe9df;
+  --font-display: "Dela Gothic One", "Hiragino Sans", sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --label-width: 172px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151e; --surface: #171e2a; --ink: #e6ebf3; --muted: #97a2b5; --line: #283244;
+    --accent: #7f9cf6; --accent-soft: #24335c; --on-accent: #0d1320; --done: #5f6c80;
+    --now: #ff7d55; --holiday: #24211b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151e; --surface: #171e2a; --ink: #e6ebf3; --muted: #97a2b5; --line: #283244;
+  --accent: #7f9cf6; --accent-soft: #24335c; --on-accent: #0d1320; --done: #5f6c80;
+  --now: #ff7d55; --holiday: #24211b; color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(26px, 5vw, 38px);
+  line-height: 1.2;
+  margin: 0;
+  text-wrap: balance;
+}
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.summary strong {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 16px;
+  margin-left: 6px;
+}
+.summary .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 13px;
+  color: var(--muted);
+  align-items: center;
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 26px; height: 12px; border-radius: 3px; display: inline-block; }
+.swatch.done { background: var(--done); }
+.swatch.fixed { background: var(--accent); }
+.swatch.proposal {
+  border: 1.5px dashed var(--accent);
+  background: repeating-linear-gradient(135deg, var(--accent-soft) 0 4px, transparent 4px 8px);
+}
+.swatch.diamond { width: 10px; height: 10px; background: var(--ink); transform: rotate(45deg); border-radius: 1px; }
+.swatch.today { width: 2px; height: 14px; background: var(--now); border-radius: 0; }
+
+.scroller {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.gantt {
+  position: relative;
+  min-width: calc(var(--label-width) + 1000px);
+}
+.row {
+  display: grid;
+  grid-template-columns: var(--label-width) 1fr;
+  border-bottom: 1px solid var(--line);
+}
+.row:last-child { border-bottom: none; }
+.label {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+.label-top { display: flex; align-items: center; gap: 8px; }
+.phase-name { font-weight: 700; font-size: 14px; }
+.row.sub .phase-name { font-weight: 500; font-size: 13px; padding-left: 12px; }
+.phase-note { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+.row.sub .phase-note { padding-left: 12px; }
+.pill {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.pill.status-done { background: var(--line); color: var(--muted); }
+.pill.status-now { background: var(--now); color: var(--on-accent); }
+.pill.status-upcoming { border: 1px solid var(--line); color: var(--muted); }
+
+.track { position: relative; height: 54px; }
+.row.header .track, .row.header .label { height: 44px; }
+.row.header .label {
+  font-size: 12px; color: var(--muted); letter-spacing: 0.06em;
+}
+.week {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.week .month { color: var(--ink); font-weight: 600; font-family: var(--font-body); font-size: 11.5px; }
+
+.bar {
+  position: absolute;
+  top: 13px;
+  height: 22px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.bar.done { background: var(--done); color: var(--on-accent); }
+.bar.fixed { background: var(--accent); color: var(--on-accent); }
+.bar.proposal {
+  border: 1.5px dashed var(--accent);
+  color: var(--accent);
+  background: repeating-linear-gradient(135deg, var(--accent-soft) 0 5px, transparent 5px 10px);
+  font-weight: 600;
+}
+
+.milestone {
+  position: absolute;
+  top: 18px;
+  width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+.milestone .diamond {
+  width: 11px; height: 11px;
+  background: var(--ink);
+  border: 2px solid var(--surface);
+  transform: rotate(45deg);
+  border-radius: 2px;
+  flex: none;
+}
+.milestone .date {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--label-width);
+  right: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.holiday { position: absolute; top: 44px; bottom: 0; background: var(--holiday); }
+.holiday span {
+  position: absolute; bottom: 6px; left: 6px;
+  font-size: 10.5px; color: var(--muted); white-space: nowrap;
+}
+.today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--now); }
+.today-line span {
+  position: absolute; top: 4px; left: 5px;
+  font-size: 10.5px; font-weight: 700; color: var(--now); white-space: nowrap;
+  background: var(--surface); padding: 0 4px; border-radius: 3px;
+}
+.row .track > * { z-index: 2; }
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 28px;
+}
+.columns > section { min-width: 0; }
+h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  letter-spacing: 0.04em;
+}
+.checkpoints { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.checkpoints li { display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: baseline; }
+.checkpoints .when {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.checkpoints .tag {
+  font-size: 10.5px; color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 999px; padding: 0 6px; margin-left: 6px; white-space: nowrap;
+}
+.notes { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; max-width: 62ch; }
+.notes li::marker { color: var(--muted); }
+footer { font-size: 12px; color: var(--muted); }
+
+.progress {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 20px;
+}
+.progress-head h2 { margin: 0; }
+.updated { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 13px; color: var(--muted); }
+.stats strong {
+  font-family: var(--font-mono); font-size: 20px; color: var(--ink);
+  font-variant-numeric: tabular-nums; margin-right: 2px;
+}
+.stats .gain strong { color: var(--now); }
+.matrix-wrap { overflow-x: auto; }
+.matrix {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+  font-size: 13px;
+  table-layout: fixed;
+}
+.matrix th:first-child { width: 92px; }
+.matrix th, .matrix td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.matrix thead th {
+  font-weight: 500; font-size: 11.5px; color: var(--muted); background: var(--bg);
+}
+.matrix thead th .no { font-family: var(--font-mono); color: var(--ink); margin-right: 4px; }
+.matrix tbody th { font-weight: 700; white-space: nowrap; background: var(--surface); }
+.matrix td.state-empty { color: var(--muted); }
+.matrix td.state-partial { background: var(--holiday); }
+.matrix td.state-done { background: var(--accent-soft); }
+.matrix td.not-assigned { color: var(--line); text-align: center; }
+.count { font-family: var(--font-mono); font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+.count-unit { font-size: 11px; color: var(--muted); margin-left: 2px; }
+.cell-sub { display: block; font-size: 11px; color: var(--muted); line-height: 1.4; }
+.cell-new { display: block; font-size: 11px; color: var(--now); font-weight: 700; line-height: 1.4; }
+.new-list { font-size: 13px; }
+.new-list .ids { font-family: var(--font-mono); font-size: 12px; }
+.pl-line, .rule-line { font-size: 12px; color: var(--muted); margin: 0; }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">マウス・ソール・パッド相性診断 ／ 6人チーム開発</p>
+    <h1>開発スケジュール</h1>
+    <div class="summary">
+      <span>現在地<strong id="current-phase">要件定義</strong></span>
+      <span>完成予定<strong><span class="num">2027/1/13</span>（水）</strong></span>
+      <span>完成まで<strong id="days-left">あと<span class="num">71</span>日</strong></span>
+    </div>
+  </header>
+
+  <section class="progress" aria-labelledby="progress-title">
+    <div class="progress-head">
+      <h2 id="progress-title">要件定義の進み具合</h2>
+      <span class="updated" id="progress-updated">要件定義書から自動で集計</span>
+    </div>
+    <div class="stats" id="progress-stats"></div>
+    <div class="matrix-wrap">
+      <table class="matrix" id="progress-matrix"></table>
+    </div>
+    <p class="new-list" id="progress-new"></p>
+    <p class="pl-line" id="progress-pl"></p>
+    <p class="rule-line">要件定義書の担当IDの番号帯（A 01〜19・B 20〜39・C 40〜59・技術リード 60〜79）で数えています。必要な欄がすべて埋まった行を「記入済み」、IDだけ・一部だけの行を「書きかけ」としています。毎晩21時ごろと、水曜の定例前に自動で更新します。</p>
+  </section>
+
+  <div class="legend" aria-label="凡例">
+    <span><i class="swatch done"></i>完了</span>
+    <span><i class="swatch fixed"></i>確定した予定</span>
+    <span><i class="swatch proposal"></i>案（定例で確定させる）</span>
+    <span><i class="swatch diamond"></i>締め切り・レビュー</span>
+    <span><i class="swatch today"></i>今日</span>
+  </div>
+
+  <div class="scroller">
+    <div class="gantt" id="gantt"></div>
+  </div>
+
+  <div class="columns">
+    <section>
+      <h2>直近のチェックポイント</h2>
+      <ul class="checkpoints">
+        <li><span class="when">11/4（水）</span><span>定例で途中確認。ユーザーストーリーはここまでに</span></li>
+        <li><span class="when">11/7（土）</span><span>要件定義書を書き終える目安</span></li>
+        <li><span class="when">11/11（水）</span><span>要件定義レビュー → 要件定義終了</span></li>
+        <li><span class="when">11/12〜</span><span>基本設計スタート<span class="tag">目標</span></span></li>
+        <li><span class="when">1/13（水）</span><span>完成</span></li>
+      </ul>
+    </section>
+    <section>
+      <h2>メモ</h2>
+      <ul class="notes">
+        <li>斜線の工程は PL の逆算案です。11/4 の定例ですり合わせて期限を確定させます。</li>
+        <li>デバイスデータの追加は要件定義と並行。期限は要確認なので、こちらも定例で決めます。</li>
+        <li>テスト期間が年末年始と重なります。参加できない日は早めに Discord のグループ欄へ。</li>
+        <li>ミーティングは毎週 水 22:30 と 土 21:30。</li>
+        <li>完了済みの工程の日付はおおよそです。</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer>工程表の最終更新 2026/11/3</footer>
+</div>
+
+<script type="application/json" id="progress-data">
+{"updatedAt":"2026-11-04T22:20","previousUpdatedAt":"2026-11-04T21:49","cells":[{"group":"ペアA","sheet":"05","doneIds":["REQ-01","REQ-02","REQ-03","REQ-04"],"partialIds":[],"newIds":[]},{"group":"ペアA","sheet":"06","doneIds":["US-01","US-02","US-03","US-04"],"partialIds":[],"newIds":[]},{"group":"ペアA","sheet":"07","doneIds":["AC-01","AC-02"],"partialIds":[],"newIds":[]},{"group":"ペアA","sheet":"08","doneIds":[],"partialIds":[],"newIds":[]},{"group":"ペアA","sheet":"09","doneIds":[],"partialIds":[],"newIds":[]},{"group":"ペアA","sheet":"12","doneIds":[],"partialIds":[],"newIds":[]},{"group":"ペアB","sheet":"05","doneIds":["REQ-20","REQ-21","REQ-22","REQ-23","REQ-24","REQ-26","REQ-27","REQ-28","REQ-29","REQ-30"],"partialIds":["REQ-25"],"newIds":[]},{"group":"ペアB","sheet":"06","doneIds":["US-20","US-21","US-22","US-23","US-24","US-25","US-26","US-27","US-28","US-29","US-30"],"partialIds":[],"newIds":[]},{"group":"ペアB","sheet":"07","doneIds":["AC-20","AC-21","AC-22","AC-23","AC-23","AC-26","AC-27","AC-28","AC-29","AC-30"],"partialIds":["AC-24"],"newIds":[]},{"group":"ペアB","sheet":"08","doneIds":[],"partialIds":[],"newIds":[]},{"group":"ペアB","sheet":"09","doneIds":[],"partialIds":[],"newIds":[]},{"group":"ペアB","sheet":"12","doneIds":["SCR-20"],"partialIds":["SCR-21"],"newIds":[]},{"group":"ペアC","sheet":"05","doneIds":["REQ-40","REQ-41","REQ-42","REQ-43","REQ-44","REQ-45"],"partialIds":[],"newIds":[]},{"group":"ペアC","sheet":"06","doneIds":["US-40","US-41","US-42","US-43","US-44","US-45"],"partialIds":["US-46","US-47","US-48"],"newIds":[]},{"group":"ペアC","sheet":"07","doneIds":["AC-40","AC-41","AC-42","AC-49"],"partialIds":["AC-43","AC-44","AC-45","AC-46","AC-47","AC-48"],"newIds":[]},{"group":"ペアC","sheet":"08","doneIds":[],"partialIds":[],"newIds":[]},{"group":"ペアC","sheet":"09","doneIds":[],"partialIds":[],"newIds":[]},{"group":"ペアC","sheet":"12","doneIds":[],"partialIds":[],"newIds":[]},{"group":"技術リード","sheet":"05","doneIds":["REQ-60","REQ-61","REQ-62","REQ-63","REQ-64","REQ-65","REQ-66"],"partialIds":[],"newIds":[]},{"group":"技術リード","sheet":"06","doneIds":["US-60","US-61","US-62","US-63","US-64","US-65","US-66"],"partialIds":[],"newIds":[]},{"group":"技術リード","sheet":"07","doneIds":["AC-60","AC-61","AC-62","AC-63","AC-64","AC-65","AC-66","AC-66","AC-68","AC-69","AC-70","AC-71","AC-72"],"partialIds":["AC-73"],"newIds":["AC-60","AC-61","AC-62","AC-63","AC-64","AC-65","AC-66","AC-66","AC-68","AC-69","AC-70","AC-71","AC-72"]},{"group":"技術リード","sheet":"08","doneIds":[],"partialIds":[],"newIds":[]},{"group":"技術リード","sheet":"09","doneIds":[],"partialIds":[],"newIds":[]},{"group":"技術リード","sheet":"12","doneIds":[],"partialIds":[],"newIds":[]},{"group":"ペアC","sheet":"04","doneIds":["PER-01","PER-02","PER-03","PER-04","PER-05","PER-06"],"partialIds":[],"newIds":[]},{"group":"技術リード","sheet":"10","doneIds":[],"partialIds":[],"newIds":[]}],"pl":[{"sheet":"03","done":2},{"sheet":"11","done":16}]}
+</script>
+
+<script>
+const MILLISECONDS_PER_DAY = 86400000;
+const MIN_DAYS_FOR_BAR_TEXT = 7;
+const RANGE_START_TEXT = "2026-10-12";
+const RANGE_END_TEXT = "2027-01-18";
+const COMPLETION_DATE_TEXT = "2027-01-13";
+const HOLIDAY_START_TEXT = "2026-12-28";
+const HOLIDAY_END_TEXT = "2027-01-03";
+
+const phases = [
+  { name: "キックオフ", note: "実施済み", start: "2026-10-12", end: "2026-10-17", kind: "fixed", isSub: false },
+  { name: "テーマ決め・企画書", note: "企画書の FIX 部分は確定", start: "2026-10-18", end: "2026-11-01", kind: "fixed", isSub: false },
+  { name: "要件定義", note: "担当シート 5〜9・12 ほか", start: "2026-11-02", end: "2026-11-11", kind: "fixed", isSub: false },
+  { name: "デバイスデータ追加", note: "並行作業・期限は要確認", start: "2026-11-02", end: "2026-11-14", kind: "proposal", isSub: true },
+  { name: "基本設計", note: "画面遷移図・モック", start: "2026-11-12", end: "2026-11-22", kind: "proposal", isSub: false },
+  { name: "詳細設計", note: "クラス・DB・API の設計", start: "2026-11-23", end: "2026-11-29", kind: "proposal", isSub: false },
+  { name: "実装", note: "Java＋Spring Boot／PostgreSQL", start: "2026-11-30", end: "2026-12-27", kind: "proposal", isSub: false },
+  { name: "テスト", note: "受け入れ条件で確認", start: "2026-12-28", end: "2027-01-10", kind: "proposal", isSub: false },
+  { name: "振り返り・完成", note: "1/13 完成", start: "2027-01-11", end: "2027-01-13", kind: "proposal", isSub: false }
+];
+
+const milestones = [
+  { phaseName: "要件定義", date: "2026-11-04", label: "ユーザーストーリー確認" },
+  { phaseName: "要件定義", date: "2026-11-07", label: "要件定義書 書き終え目安" },
+  { phaseName: "要件定義", date: "2026-11-11", label: "要件定義レビュー" },
+  { phaseName: "振り返り・完成", date: "2027-01-13", label: "完成" }
+];
+
+function parseDate(dateText) {
+  const parts = dateText.split("-").map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+const rangeStart = parseDate(RANGE_START_TEXT);
+const totalDays = Math.round((parseDate(RANGE_END_TEXT) - rangeStart) / MILLISECONDS_PER_DAY);
+
+function getDayIndex(date) {
+  return Math.round((date - rangeStart) / MILLISECONDS_PER_DAY);
+}
+
+function toPercent(dayCount) {
+  return (dayCount / totalDays) * 100;
+}
+
+function formatMonthDay(date) {
+  return (date.getMonth() + 1) + "/" + date.getDate();
+}
+
+function getToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function getStatus(phase, today) {
+  if (today > parseDate(phase.end)) {
+    return "done";
+  }
+  if (today >= parseDate(phase.start)) {
+    return "now";
+  }
+  return "upcoming";
+}
+
+const STATUS_LABELS = { done: "完了", now: "進行中", upcoming: "予定" };
+
+function createElement(tagName, className, text) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (text) {
+    element.textContent = text;
+  }
+  return element;
+}
+
+function buildHeaderRow() {
+  const row = createElement("div", "row header");
+  row.appendChild(createElement("div", "label", "工程"));
+
+  const track = createElement("div", "track");
+  for (let dayIndex = 0; dayIndex < totalDays; dayIndex += 7) {
+    const weekStart = new Date(rangeStart.getTime() + dayIndex * MILLISECONDS_PER_DAY);
+    const week = createElement("div", "week");
+    week.style.left = toPercent(dayIndex) + "%";
+    week.style.width = toPercent(7) + "%";
+
+    const isFirstWeekOfMonth = weekStart.getDate() <= 7;
+    if (isFirstWeekOfMonth || dayIndex === 0) {
+      week.appendChild(createElement("span", "month", (weekStart.getMonth() + 1) + "月"));
+    }
+    week.appendChild(createElement("span", "", formatMonthDay(weekStart)));
+    track.appendChild(week);
+  }
+  row.appendChild(track);
+  return row;
+}
+
+function buildBar(phase, status) {
+  const startDate = parseDate(phase.start);
+  const endDate = parseDate(phase.end);
+  const lengthInDays = getDayIndex(endDate) - getDayIndex(startDate) + 1;
+
+  let styleName = phase.kind;
+  if (status === "done") {
+    styleName = "done";
+  }
+
+  const bar = createElement("div", "bar " + styleName);
+  bar.style.left = toPercent(getDayIndex(startDate)) + "%";
+  bar.style.width = toPercent(lengthInDays) + "%";
+  bar.title = phase.name + " " + formatMonthDay(startDate) + "–" + formatMonthDay(endDate);
+
+  if (lengthInDays >= MIN_DAYS_FOR_BAR_TEXT) {
+    bar.textContent = formatMonthDay(startDate) + "–" + formatMonthDay(endDate);
+  }
+  return bar;
+}
+
+function buildMilestone(milestone) {
+  const date = parseDate(milestone.date);
+  const marker = createElement("div", "milestone");
+  marker.style.left = toPercent(getDayIndex(date) + 0.5) + "%";
+  marker.title = formatMonthDay(date) + " " + milestone.label;
+  marker.appendChild(createElement("span", "diamond"));
+  marker.appendChild(createElement("span", "date", formatMonthDay(date)));
+  return marker;
+}
+
+function buildPhaseRow(phase, today) {
+  const status = getStatus(phase, today);
+  const row = createElement("div", phase.isSub ? "row sub" : "row");
+
+  const label = createElement("div", "label");
+  const labelTop = createElement("div", "label-top");
+  labelTop.appendChild(createElement("span", "phase-name", phase.name));
+  labelTop.appendChild(createElement("span", "pill status-" + status, STATUS_LABELS[status]));
+  label.appendChild(labelTop);
+  label.appendChild(createElement("span", "phase-note", phase.note));
+  row.appendChild(label);
+
+  const track = createElement("div", "track");
+  track.appendChild(buildBar(phase, status));
+  milestones
+    .filter(function (milestone) { return milestone.phaseName === phase.name; })
+    .forEach(function (milestone) { track.appendChild(buildMilestone(milestone)); });
+  row.appendChild(track);
+  return row;
+}
+
+function buildOverlay(today) {
+  const overlay = createElement("div", "overlay");
+
+  for (let dayIndex = 7; dayIndex < totalDays; dayIndex += 7) {
+    const gridline = createElement("div", "gridline");
+    gridline.style.left = toPercent(dayIndex) + "%";
+    overlay.appendChild(gridline);
+  }
+
+  const holidayStartIndex = getDayIndex(parseDate(HOLIDAY_START_TEXT));
+  const holidayLength = getDayIndex(parseDate(HOLIDAY_END_TEXT)) - holidayStartIndex + 1;
+  const holiday = createElement("div", "holiday");
+  holiday.style.left = toPercent(holidayStartIndex) + "%";
+  holiday.style.width = toPercent(holidayLength) + "%";
+  holiday.appendChild(createElement("span", "", "年末年始"));
+  overlay.appendChild(holiday);
+
+  const todayIndex = getDayIndex(today);
+  const isTodayInRange = todayIndex >= 0 && todayIndex < totalDays;
+  if (isTodayInRange) {
+    const todayLine = createElement("div", "today-line");
+    todayLine.style.left = toPercent(todayIndex + 0.5) + "%";
+    todayLine.appendChild(createElement("span", "", "今日 " + formatMonthDay(today)));
+    overlay.appendChild(todayLine);
+  }
+  return overlay;
+}
+
+function updateSummary(today) {
+  const currentPhase = phases.find(function (phase) {
+    return !phase.isSub && getStatus(phase, today) === "now";
+  });
+  if (currentPhase) {
+    document.getElementById("current-phase").textContent = currentPhase.name;
+  }
+
+  const daysLeft = Math.round((parseDate(COMPLETION_DATE_TEXT) - today) / MILLISECONDS_PER_DAY);
+  const daysLeftElement = document.getElementById("days-left");
+  if (daysLeft >= 0) {
+    daysLeftElement.innerHTML = "あと<span class=\"num\">" + daysLeft + "</span>日";
+  } else {
+    daysLeftElement.textContent = "完成予定日を過ぎました";
+  }
+}
+
+function renderGantt() {
+  const today = getToday();
+  const gantt = document.getElementById("gantt");
+
+  gantt.appendChild(buildOverlay(today));
+  gantt.appendChild(buildHeaderRow());
+  phases.forEach(function (phase) {
+    gantt.appendChild(buildPhaseRow(phase, today));
+  });
+
+  updateSummary(today);
+}
+
+const PROGRESS_GROUPS = ["ペアA", "ペアB", "ペアC", "技術リード"];
+const PROGRESS_COLUMNS = [
+  { sheet: "05", title: "要求整理" },
+  { sheet: "06", title: "ユーザーストーリー" },
+  { sheet: "07", title: "受け入れ条件" },
+  { sheet: "08", title: "ユースケース" },
+  { sheet: "09", title: "機能要件" },
+  { sheet: "12", title: "画面一覧" }
+];
+const EXTRA_SHEET_TITLES = { "04": "ペルソナ", "10": "非機能要件" };
+const PL_SHEET_TITLES = { "03": "利用者定義", "11": "スコープ" };
+const MAX_NEW_IDS_SHOWN = 15;
+const WRITING_DEADLINE_TEXT = "2026-11-07";
+
+function readProgressData() {
+  const dataElement = document.getElementById("progress-data");
+  try {
+    return JSON.parse(dataElement.textContent);
+  } catch (error) {
+    return null;
+  }
+}
+
+function formatDateTime(dateTimeText) {
+  const datePart = dateTimeText.split("T")[0];
+  const timePart = dateTimeText.split("T")[1];
+  const parts = datePart.split("-").map(Number);
+  return parts[1] + "/" + parts[2] + " " + timePart;
+}
+
+function findCell(cells, group, sheet) {
+  return cells.find(function (item) {
+    return item.group === group && item.sheet === sheet;
+  });
+}
+
+function buildCountCell(item, label) {
+  const td = document.createElement("td");
+  const doneCount = item.doneIds.length;
+  const partialCount = item.partialIds.length;
+
+  if (doneCount > 0) {
+    td.className = "state-done";
+  } else if (partialCount > 0) {
+    td.className = "state-partial";
+  } else {
+    td.className = "state-empty";
+  }
+
+  if (label) {
+    td.appendChild(createElement("span", "cell-sub", label));
+  }
+  const count = createElement("span", "count", String(doneCount));
+  td.appendChild(count);
+  td.appendChild(createElement("span", "count-unit", "件"));
+
+  if (partialCount > 0) {
+    td.appendChild(createElement("span", "cell-sub", "書きかけ " + partialCount));
+  }
+  if (item.newIds.length > 0) {
+    td.appendChild(createElement("span", "cell-new", "▲ 新着 " + item.newIds.length));
+  }
+  return td;
+}
+
+function buildMatrix(progress) {
+  const table = document.getElementById("progress-matrix");
+
+  const headRow = document.createElement("tr");
+  headRow.appendChild(createElement("th", "", "担当"));
+  PROGRESS_COLUMNS.forEach(function (column) {
+    const th = document.createElement("th");
+    th.appendChild(createElement("span", "no", column.sheet));
+    th.appendChild(document.createTextNode(column.title));
+    headRow.appendChild(th);
+  });
+  headRow.appendChild(createElement("th", "", "追加の担当"));
+  const thead = document.createElement("thead");
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  PROGRESS_GROUPS.forEach(function (group) {
+    const row = document.createElement("tr");
+    row.appendChild(createElement("th", "", group));
+
+    PROGRESS_COLUMNS.forEach(function (column) {
+      row.appendChild(buildCountCell(findCell(progress.cells, group, column.sheet), ""));
+    });
+
+    const extraItem = progress.cells.find(function (item) {
+      return item.group === group && EXTRA_SHEET_TITLES[item.sheet];
+    });
+    if (extraItem) {
+      row.appendChild(buildCountCell(extraItem, extraItem.sheet + " " + EXTRA_SHEET_TITLES[extraItem.sheet]));
+    } else {
+      row.appendChild(createElement("td", "not-assigned", "―"));
+    }
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+}
+
+function buildStats(progress, today) {
+  const startedCount = progress.cells.filter(function (item) { return item.doneIds.length > 0; }).length;
+  let doneTotal = 0;
+  let partialTotal = 0;
+  let newTotal = 0;
+  progress.cells.forEach(function (item) {
+    doneTotal += item.doneIds.length;
+    partialTotal += item.partialIds.length;
+    newTotal += item.newIds.length;
+  });
+
+  const stats = document.getElementById("progress-stats");
+  function addStat(value, text, className) {
+    const span = createElement("span", className || "");
+    span.appendChild(createElement("strong", "", value));
+    span.appendChild(document.createTextNode(text));
+    stats.appendChild(span);
+  }
+
+  addStat(startedCount + "/" + progress.cells.length, " 担当シートに記入あり");
+  addStat(String(doneTotal), " 件 記入済み");
+  addStat(String(partialTotal), " 件 書きかけ");
+  if (progress.previousUpdatedAt) {
+    addStat("+" + newTotal, " 件 前回の更新から", "gain");
+  }
+
+  const daysToDeadline = Math.round((parseDate(WRITING_DEADLINE_TEXT) - today) / MILLISECONDS_PER_DAY);
+  if (daysToDeadline >= 0) {
+    addStat(String(daysToDeadline), " 日 11/7 書き終え目安まで");
+  }
+  return startedCount + "/" + progress.cells.length;
+}
+
+function buildNewList(progress) {
+  const newListElement = document.getElementById("progress-new");
+  if (!progress.previousUpdatedAt) {
+    newListElement.textContent = "今回が最初の集計です。次の更新から、前回以降に記入済みになった項目がここに並びます。";
+    return;
+  }
+
+  const newIds = [];
+  progress.cells.forEach(function (item) {
+    item.newIds.forEach(function (itemId) { newIds.push(itemId); });
+  });
+  if (newIds.length === 0) {
+    newListElement.textContent = "前回の更新（" + formatDateTime(progress.previousUpdatedAt) + "）から新しく記入済みになった項目はありません。";
+    return;
+  }
+
+  newListElement.appendChild(document.createTextNode("新着（" + formatDateTime(progress.previousUpdatedAt) + " 以降）："));
+  let shownText = newIds.slice(0, MAX_NEW_IDS_SHOWN).join("、");
+  if (newIds.length > MAX_NEW_IDS_SHOWN) {
+    shownText += " ほか" + (newIds.length - MAX_NEW_IDS_SHOWN) + "件";
+  }
+  newListElement.appendChild(createElement("span", "ids", shownText));
+}
+
+function buildPlLine(progress) {
+  const parts = progress.pl.map(function (item) {
+    return item.sheet + " " + PL_SHEET_TITLES[item.sheet] + " " + item.done + "件";
+  });
+  document.getElementById("progress-pl").textContent = "PL担当：" + parts.join("、");
+}
+
+function renderProgress() {
+  const progress = readProgressData();
+  const section = document.querySelector(".progress");
+  if (!progress) {
+    section.hidden = true;
+    return;
+  }
+
+  document.getElementById("progress-updated").textContent = "要件定義書から自動集計・" + formatDateTime(progress.updatedAt) + " 時点";
+  buildMatrix(progress);
+  const startedText = buildStats(progress, getToday());
+  buildNewList(progress);
+  buildPlLine(progress);
+
+  const requirementsPhase = phases.find(function (phase) { return phase.name === "要件定義"; });
+  requirementsPhase.note = "担当シート記入あり " + startedText;
+}
+
+renderProgress();
+renderGantt();
+</script>
+
+</body></html>
